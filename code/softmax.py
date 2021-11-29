@@ -25,7 +25,14 @@ class Softmax:
         return np.sum(sumed, axis=0) / -m
 
     def cross_entropy_grad_wrt_weights(self, X, output, labels):
-        pass
+        m = output.shape[0]
+        sumexp = np.zeros(self.W.shape[1])
+        for j in range(self.W.shape[0]):
+            sumexp += np.exp(np.dot(X.T, self.W[j]))
+        exp = np.exp(np.dot(X.T, self.W[p]))
+        brackets = np.divide(exp, sumexp) - labels[p]
+        return (X / m) * brackets
+
 
     def cross_entropy_grad_wrt_inputs(self, X, labels):
         pass
@@ -42,7 +49,7 @@ class Softmax:
         y0 = np.zeros(8)
         y1 = np.zeros(8)
         print("k\terror  oreder 1\t\t error order 2")
-        for k in range(1, 9):
+        for k in range(8):
             epsk = epsilon * (0.5 ** k)
             Fk = F(x + epsk * d)
             F1 = F0 + epsk * np.dot(g0, d)
@@ -53,3 +60,6 @@ class Softmax:
 
     def sgd(self, x):
         return np.sgd(x)
+
+sm = Softmax(2,3)
+print(sm.grad_test_wrt_w())
