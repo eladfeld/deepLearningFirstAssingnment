@@ -27,7 +27,8 @@ class NN:
         output = X
         for i in range(0, self.num_layers):
             #print(f"i: {i},out: {output.shape}, w: {self.layers[i].weights.shape}")
-            output = (output @ self.layers[i].weights)# + self.layers[i].bias[:,None]
+            output = (output @ self.layers[i].weights)
+            output += self.layers[i].bias.T
             #f = softmax if (i == self.num_layers) else self.act
             f = lambda x: x
             output = f(output)
@@ -43,8 +44,8 @@ class NN:
             a = self.layers[self.num_layers - i].Y.T
             b = err.T
             dW = -LR * (a @ b)
-            self.layers[self.num_layers - i + 1].weights += dW
             err = self.layers[self.num_layers - i + 1].weights @ err
+            self.layers[self.num_layers - i + 1].weights += dW
 
         a = data.T
         b = err.T
@@ -65,12 +66,13 @@ def check():
     # for layer in nn.layers:
     #     print(layer.weights.shape)
 
-    for i in range(1,50):
-        input = np.ones((1, in_dim)) * (0.1 * i)
-        expected = np.ones((1, out_dim)) * (0.1 * i)
+    for i in range(1,2):
+        input = np.ones((1, in_dim)) * (0.01 * i)
+        expected = np.ones((1, out_dim)) * (0.01 * i)
 
         pred = nn.predict(input)
-        print(pred)
+        if i%10 == 0:
+            print(f"exp: {0.01 * i},\tgot: {pred}")
         nn.learn(expected, input)
 
         # print(pred)
