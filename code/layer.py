@@ -19,10 +19,10 @@ class Layer:
         self.output = (X.T @ self.W) + self.B.T
         return self.output
 
-    def backward(self, desired):
+    def backward(self, err):
         # print('output shape: ', self.output.shape)
         # print('desired shape: ', desired.shape)
-        err = desired - self.output.T
+        err = err - self.output.T
         # print('err shape: ', err.shape)
         # print('X shape: ', self.X.shape)
         dW = LR * (self.X @ err.T)
