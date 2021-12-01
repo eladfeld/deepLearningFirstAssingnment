@@ -44,15 +44,21 @@ class NN:
             a = self.layers[self.num_layers - i].Y.T
             b = err.T
             dW = -LR * (a @ b)
+            dB = -LR * b
+            # print(f"learn: a: {a.shape}, b: {b.shape}, bias: {self.layers[self.num_layers - i + 1].bias.shape}")
+
             err = self.layers[self.num_layers - i + 1].weights @ err
             self.layers[self.num_layers - i + 1].weights += dW
+            self.layers[self.num_layers - i + 1].bias += dB.T
 
         a = data.T
         b = err.T
         #print(f"a: {a.shape}, b: {b.shape}")
         dW = -LR * (a @ b)
+        dB = -LR * b
         #print(f"dW: {dW.shape}, W: {self.layers[0].weights.shape}")
         self.layers[0].weights += dW
+        self.layers[0].bias += dB.T
 
 
             
@@ -60,13 +66,13 @@ class NN:
 
 def check():
     in_dim = 5
-    out_dim = 3
+    out_dim = 2
     nn = NN(layer_dims=[in_dim, 4, 3, out_dim])
 
     # for layer in nn.layers:
     #     print(layer.weights.shape)
 
-    for i in range(1,2):
+    for i in range(1,200):
         input = np.ones((1, in_dim)) * (0.01 * i)
         expected = np.ones((1, out_dim)) * (0.01 * i)
 
