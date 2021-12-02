@@ -1,4 +1,5 @@
 import numpy as np
+import funcs
 # from matplotlib import pyplot as plt
 # import random
 # from utils import *
@@ -14,9 +15,9 @@ class Layer:
         self.Y = np.zeros((out_dim, 1)) #todo: may need to switch dims order
 
 class NN:
-    def __init__(self, layer_dims, act=None, act_grad=None):
+    def __init__(self, layer_dims, act=funcs.tanh, act_tag=funcs.tanh_tag):
         self.act = act
-        self.act_grad = act_grad
+        self.d_act = act_tag
         self.num_layers = len(layer_dims) - 1
 
         self.layers = [None] * self.num_layers
@@ -25,12 +26,13 @@ class NN:
 
     def predict(self, X):
         output = X
+
+        #propogate data forward through the layers
         for i in range(0, self.num_layers):
-            #print(f"i: {i},out: {output.shape}, w: {self.layers[i].weights.shape}")
             output = (output @ self.layers[i].weights)
             output += self.layers[i].bias.T
-            #f = softmax if (i == self.num_layers) else self.act
-            f = lambda x: x
+            f = funcs.softmax if (i == self.num_layers - 1) else self.act
+            #f = self.act
             output = f(output)
             self.layers[i].Y = output
 
@@ -41,8 +43,9 @@ class NN:
         err = (pred - expected).T
 
         for i in range(2, self.num_layers + 1):
+            d_f = funcs.grad_softmax if (i == 2) else self.d_act
             a = self.layers[self.num_layers - i].Y.T
-            b = err.T
+            b = (err.T * d_f(self.layers[self.num_layers - i + 1].Y))#todo: transpose result, not just err?
             dW = -LR * (a @ b)
             dB = -LR * b
             # print(f"learn: a: {a.shape}, b: {b.shape}, bias: {self.layers[self.num_layers - i + 1].bias.shape}")
@@ -61,33 +64,42 @@ class NN:
         self.layers[0].bias += dB.T
 
 
-            
+def get_error(pred, real):
+    output = pred - real
+    output = output * output
+    output = np.sum(output)
+    return output
+
+
+def foo(v):
+    v1, v2, v3 = v[0]
+    if (v1 + v2 > v3):
+        return np.array([[0, 1]])
+    else:
+        return np.array([[1, 0]])
 
 
 def check():
-    in_dim = 5
+    in_dim = 3
     out_dim = 2
-    nn = NN(layer_dims=[in_dim, 4, 3, out_dim])
+    nn = NN(layer_dims=[in_dim, 4, 3, out_dim], act=funcs.tanh, act_tag=funcs.tanh_tag)
 
-    # for layer in nn.layers:
-    #     print(layer.weights.shape)
+    train_size = 500000
+    print_every_n = 1000
+    f = foo
 
-    for i in range(1,200):
-        input = np.ones((1, in_dim)) * (0.01 * i)
-        expected = np.ones((1, out_dim)) * (0.01 * i)
+    err = 0
+    for i in range(1, train_size + 1):
+        input = np.random.uniform(0, 1, (1, in_dim))
+        expected = f(input)
 
         pred = nn.predict(input)
-        if i%10 == 0:
-            print(f"exp: {0.01 * i},\tgot: {pred}")
+        err += get_error(pred, expected)
+        if i%print_every_n == 0:
+            print(f"avg_err: {err / print_every_n}")
+            err = 0
+            
         nn.learn(expected, input)
-
-        # print(pred)
-        # for i in range(0, 10):
-        #     nn.learn(expected, input)
-        #     pred = nn.predict(input)
-        #     print(pred)
-
-
 
 
 check()
