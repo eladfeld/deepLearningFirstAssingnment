@@ -19,6 +19,7 @@ class NN:
         self.d_act = act_tag
         self.lr = lr
         self.num_layers = len(layer_dims) - 1
+        self.lr_decay = .9999
 
         self.layers = [None] * self.num_layers
         for i in range(0, self.num_layers):
@@ -45,38 +46,59 @@ class NN:
             d_f = funcs.grad_softmax if (i == 2) else self.d_act
             a = self.layers[self.num_layers - i].Y.T
             b = (err.T * d_f(self.layers[self.num_layers - i + 1].Y))#todo: transpose result, not just err?
+            #print(f"a: {a.shape, }b: {b.shape}, meanB0: {np.mean(b, axis=0, keepdims=True).shape}")
             dW = -self.lr * (a @ b)
-            dB = -self.lr * b
-            # print(f"learn: a: {a.shape}, b: {b.shape}, bias: {self.layers[self.num_layers - i + 1].bias.shape}")
+            dB = -self.lr * np.mean(b, axis=0, keepdims=True)
+            #print(f"learn: a: {a.shape}, b: {b.shape}, dW: {dW.shape}, dB: {dB.shape}")
 
             err = self.layers[self.num_layers - i + 1].weights @ err
             self.layers[self.num_layers - i + 1].weights += dW
-            self.layers[self.num_layers - i + 1].bias += dB.T
+            #self.layers[self.num_layers - i + 1].bias += dB.T
 
         a = data.T
-        b = err.T
+        b = err.T * self.d_act(self.layers[0].Y)
         dW = -self.lr * (a @ b)
-        dB = -self.lr * b
+        dB = -self.lr * np.mean(b, axis=0, keepdims=True)
         self.layers[0].weights += dW
-        self.layers[0].bias += dB.T
+        #self.layers[0].bias += dB.T
+        #self.lr *= self.lr_decay
 
     def train(self, inputs, labels):
-        batch_size = 250
+        err1, err2 = 0, 0
+        #run one by one
+        for i in range(0, 10):
+            input = inputs[i:i+1]
+            expected = labels[i:i+1]
+            pred = self.predict(input)
+            err1 += get_error(pred, expected)
+
+        input = inputs[0:10]
+        expected = labels[0:10]
+        pred = self.predict(input)
+        err2 = get_error(pred, expected)
+
+        print(f"err1: {err1}, err2: {err2}")
+        return
+
+
+        mini_batch_size = 1
+        batch_size = 100
         batch_err = 0
         bad_preds = 0
-        for i in range(len(inputs)):
-            input = inputs[i][None, :]
-            expected = labels[i][None, :]
+        for i in range(0, len(inputs), mini_batch_size):
+            input = inputs[i:i+mini_batch_size]
+            expected = labels[i:i+mini_batch_size]
             pred = self.predict(input)
 
             batch_err += get_error(pred, expected)
-            if not pred_is_correct(pred, expected):
-                bad_preds += 1
+            # if not pred_is_correct(pred, expected):
+            #     bad_preds += 1
 
             self.learn(expected, input)
 
-            if (i + 1) % batch_size == 0:
-                print(f"batch #{int(i/batch_size)}:\twrongs: {bad_preds}/{batch_size}\terr: {batch_err}")
+            if (i) % batch_size == 0:
+                # print(f"batch #{int(i/batch_size)}:\twrongs: {bad_preds}/{batch_size}\terr: {batch_err}")
+                print(f"batch #{int(i/batch_size)}:\terr: {batch_err/batch_size}")
                 batch_err = 0
                 bad_preds = 0
 
@@ -91,7 +113,8 @@ def pred_is_correct(pred, real):
 def get_error(pred, real):
     output = pred - real
     output = output * output
-    output = np.sum(output)
+    output = np.sum(np.sum(output))
+    print(f"err shape: {output.shape}")
     return output
 
 
@@ -124,6 +147,7 @@ def check():
             err = 0
             
         nn.learn(expected, input)
+
 
 
 # check()
