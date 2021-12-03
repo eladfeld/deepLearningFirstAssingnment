@@ -6,7 +6,6 @@ import funcs
 # import scipy.io as sio
 # from copy import deepcopy
 
-LR = 0.01
 
 class Layer:
     def __init__(self, in_dim, out_dim):
@@ -15,9 +14,10 @@ class Layer:
         self.Y = np.zeros((out_dim, 1)) #todo: may need to switch dims order
 
 class NN:
-    def __init__(self, layer_dims, act=funcs.tanh, act_tag=funcs.tanh_tag):
+    def __init__(self, layer_dims, act=funcs.tanh, act_tag=funcs.tanh_tag, lr=0.01):
         self.act = act
         self.d_act = act_tag
+        self.lr = lr
         self.num_layers = len(layer_dims) - 1
 
         self.layers = [None] * self.num_layers
@@ -32,7 +32,6 @@ class NN:
             output = (output @ self.layers[i].weights)
             output += self.layers[i].bias.T
             f = funcs.softmax if (i == self.num_layers - 1) else self.act
-            #f = self.act
             output = f(output)
             self.layers[i].Y = output
 
@@ -46,8 +45,8 @@ class NN:
             d_f = funcs.grad_softmax if (i == 2) else self.d_act
             a = self.layers[self.num_layers - i].Y.T
             b = (err.T * d_f(self.layers[self.num_layers - i + 1].Y))#todo: transpose result, not just err?
-            dW = -LR * (a @ b)
-            dB = -LR * b
+            dW = -self.lr * (a @ b)
+            dB = -self.lr * b
             # print(f"learn: a: {a.shape}, b: {b.shape}, bias: {self.layers[self.num_layers - i + 1].bias.shape}")
 
             err = self.layers[self.num_layers - i + 1].weights @ err
@@ -56,12 +55,37 @@ class NN:
 
         a = data.T
         b = err.T
-        #print(f"a: {a.shape}, b: {b.shape}")
-        dW = -LR * (a @ b)
-        dB = -LR * b
-        #print(f"dW: {dW.shape}, W: {self.layers[0].weights.shape}")
+        dW = -self.lr * (a @ b)
+        dB = -self.lr * b
         self.layers[0].weights += dW
         self.layers[0].bias += dB.T
+
+    def train(self, inputs, labels):
+        batch_size = 250
+        batch_err = 0
+        bad_preds = 0
+        for i in range(len(inputs)):
+            input = inputs[i][None, :]
+            expected = labels[i][None, :]
+            pred = self.predict(input)
+
+            batch_err += get_error(pred, expected)
+            if not pred_is_correct(pred, expected):
+                bad_preds += 1
+
+            self.learn(expected, input)
+
+            if (i + 1) % batch_size == 0:
+                print(f"batch #{int(i/batch_size)}:\twrongs: {bad_preds}/{batch_size}\terr: {batch_err}")
+                batch_err = 0
+                bad_preds = 0
+
+
+
+
+            
+def pred_is_correct(pred, real):
+    return (np.argmax(pred) == np.argmax(real))
 
 
 def get_error(pred, real):
@@ -102,4 +126,4 @@ def check():
         nn.learn(expected, input)
 
 
-check()
+# check()
