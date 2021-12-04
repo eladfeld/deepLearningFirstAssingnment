@@ -31,7 +31,7 @@ class NN:
         #propogate data forward through the layers
         for i in range(0, self.num_layers):
             output = (output @ self.layers[i].weights)
-            output += self.layers[i].bias.T
+            #output += self.layers[i].bias.T
             f = funcs.softmax if (i == self.num_layers - 1) else self.act
             output = f(output)
             self.layers[i].Y = output
@@ -63,58 +63,51 @@ class NN:
         #self.layers[0].bias += dB.T
         #self.lr *= self.lr_decay
 
-    def train(self, inputs, labels):
-        err1, err2 = 0, 0
-        #run one by one
-        for i in range(0, 10):
-            input = inputs[i:i+1]
-            expected = labels[i:i+1]
-            pred = self.predict(input)
-            err1 += get_error(pred, expected)
-
-        input = inputs[0:10]
-        expected = labels[0:10]
-        pred = self.predict(input)
-        err2 = get_error(pred, expected)
-
-        print(f"err1: {err1}, err2: {err2}")
-        return
-
-
-        mini_batch_size = 1
+    def train(self, inputs, labels, mini_batch_size=10):
         batch_size = 100
         batch_err = 0
-        bad_preds = 0
+        num_correct, total = 0, 0
         for i in range(0, len(inputs), mini_batch_size):
             input = inputs[i:i+mini_batch_size]
             expected = labels[i:i+mini_batch_size]
             pred = self.predict(input)
 
             batch_err += get_error(pred, expected)
-            # if not pred_is_correct(pred, expected):
-            #     bad_preds += 1
+            num_correct_i, total_i = accuracy(pred, expected)
+            num_correct += num_correct_i
+            total += total_i
 
             self.learn(expected, input)
 
             if (i) % batch_size == 0:
                 # print(f"batch #{int(i/batch_size)}:\twrongs: {bad_preds}/{batch_size}\terr: {batch_err}")
-                print(f"batch #{int(i/batch_size)}:\terr: {batch_err/batch_size}")
+                # print(f"batch #{int(i/batch_size)}:\terr: {batch_err/batch_size}")
+                print(f"{int(i/batch_size)},\t {batch_err/batch_size},\t{num_correct}/{total}")
                 batch_err = 0
-                bad_preds = 0
+                num_correct, total = 0, 0
+
 
 
 
 
             
-def pred_is_correct(pred, real):
-    return (np.argmax(pred) == np.argmax(real))
+def accuracy(pred, real):
+    num_correct = 0
+    total = len(pred)
+    for i in range(total):
+        if (np.argmax(pred[i]) == np.argmax(real[i])):
+            num_correct += 1
+    return num_correct, total
+
+
+    return 
 
 
 def get_error(pred, real):
     output = pred - real
     output = output * output
     output = np.sum(np.sum(output))
-    print(f"err shape: {output.shape}")
+    # print(f"pred: {pred}\nreal: {real}\nerr: {output}")
     return output
 
 

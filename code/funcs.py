@@ -3,7 +3,8 @@ import numpy as np
 def softmax(xTw):
     #assumes x = xTranspose * w in the input
     e_x = np.exp(xTw - np.max(xTw))
-    return e_x / e_x.sum()
+    return e_x / np.sum(e_x, axis=1, keepdims=True)
+    # return e_x / e_x.sum()
 
     # x_transpose = x.T
     # n = np.argmax(x_transpose.dot(w))
