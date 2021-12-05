@@ -1,25 +1,28 @@
 import numpy as np
 import funcs
+from utils import fs
 # from matplotlib import pyplot as plt
 # import random
 # from utils import *
 # import scipy.io as sio
 # from copy import deepcopy
-
+LR = 0.15
+LR_DECAY = .9999
+MIN_LR = 0.025
 
 class Layer:
     def __init__(self, in_dim, out_dim):
+        np.random.seed(42)
         self.weights = np.random.uniform(size=(in_dim, out_dim), low=-1.0, high=1.0 )
         self.bias= np.random.uniform(size=(out_dim, 1), low=-1.0, high=1.0 ) #todo: may need to switch dims of size param
         self.Y = np.zeros((out_dim, 1)) #todo: may need to switch dims order
 
 class NN:
-    def __init__(self, layer_dims, act=funcs.tanh, act_tag=funcs.tanh_tag, lr=0.01):
+    def __init__(self, layer_dims, act=funcs.tanh, act_tag=funcs.tanh_tag, lr=LR):
         self.act = act
         self.d_act = act_tag
         self.lr = lr
         self.num_layers = len(layer_dims) - 1
-        self.lr_decay = .9999
 
         self.layers = [None] * self.num_layers
         for i in range(0, self.num_layers):
@@ -48,25 +51,27 @@ class NN:
             b = (err.T * d_f(self.layers[self.num_layers - i + 1].Y))#todo: transpose result, not just err?
             #print(f"a: {a.shape, }b: {b.shape}, meanB0: {np.mean(b, axis=0, keepdims=True).shape}")
             dW = -self.lr * (a @ b)
-            dB = -self.lr * np.mean(b, axis=0, keepdims=True)
+            dB = -(self.lr / 10) * np.mean(b, axis=0, keepdims=True)
             #print(f"learn: a: {a.shape}, b: {b.shape}, dW: {dW.shape}, dB: {dB.shape}")
 
             err = self.layers[self.num_layers - i + 1].weights @ err
             self.layers[self.num_layers - i + 1].weights += dW
-            #self.layers[self.num_layers - i + 1].bias += dB.T
+            self.layers[self.num_layers - i + 1].bias += dB.T
 
         a = data.T
         b = err.T * self.d_act(self.layers[0].Y)
         dW = -self.lr * (a @ b)
-        dB = -self.lr * np.mean(b, axis=0, keepdims=True)
+        dB = -(self.lr / 10) * np.mean(b, axis=0, keepdims=True)
         self.layers[0].weights += dW
-        #self.layers[0].bias += dB.T
-        #self.lr *= self.lr_decay
+        self.layers[0].bias += dB.T
+        self.lr = max(LR_DECAY * self.lr, MIN_LR)
 
-    def train(self, inputs, labels, mini_batch_size=10):
-        batch_size = 100
+    def train(self, inputs, labels, mini_batch_size, batch_size):
         batch_err = 0
         num_correct, total = 0, 0
+        p_stats = np.zeros((labels.shape[1]))
+        r_stats = np.zeros((labels.shape[1]))
+        
         for i in range(0, len(inputs), mini_batch_size):
             input = inputs[i:i+mini_batch_size]
             expected = labels[i:i+mini_batch_size]
@@ -77,18 +82,36 @@ class NN:
             num_correct += num_correct_i
             total += total_i
 
+            p_stats_i, r_stats_i = stats(pred, expected)
+            p_stats += p_stats_i
+            r_stats += r_stats_i
+
             self.learn(expected, input)
 
-            if (i) % batch_size == 0:
+            if (i + mini_batch_size) % batch_size == 0:
                 # print(f"batch #{int(i/batch_size)}:\twrongs: {bad_preds}/{batch_size}\terr: {batch_err}")
                 # print(f"batch #{int(i/batch_size)}:\terr: {batch_err/batch_size}")
-                print(f"{int(i/batch_size)},\t {batch_err/batch_size},\t{num_correct}/{total}")
+                print(f"{int(i/batch_size)}\tlr: {fs(self.lr)}\terr: {fs(batch_err/batch_size)}\tacc: {num_correct}/{total}\tps: {p_stats}\trs: {r_stats}")
                 batch_err = 0
                 num_correct, total = 0, 0
+                p_stats = np.zeros((labels.shape[1]))
+                r_stats = np.zeros((labels.shape[1]))
+            
 
 
 
+def stats(preds, reals):
+    p_stats = [0] * preds.shape[1]
+    r_stats = [0] * reals.shape[1]
 
+    for i in range(preds.shape[0]):
+        pred = np.argmax(preds[i])
+        p_stats[pred] += 1
+
+        real = np.argmax(reals[i])
+        r_stats[real] += 1
+    
+    return np.array(p_stats), np.array(r_stats)
 
             
 def accuracy(pred, real):
@@ -98,9 +121,6 @@ def accuracy(pred, real):
         if (np.argmax(pred[i]) == np.argmax(real[i])):
             num_correct += 1
     return num_correct, total
-
-
-    return 
 
 
 def get_error(pred, real):
@@ -118,29 +138,3 @@ def foo(v):
     else:
         return np.array([[1, 0]])
 
-
-def check():
-    in_dim = 3
-    out_dim = 2
-    nn = NN(layer_dims=[in_dim, 4, 3, out_dim], act=funcs.tanh, act_tag=funcs.tanh_tag)
-
-    train_size = 500000
-    print_every_n = 1000
-    f = foo
-
-    err = 0
-    for i in range(1, train_size + 1):
-        input = np.random.uniform(0, 1, (1, in_dim))
-        expected = f(input)
-
-        pred = nn.predict(input)
-        err += get_error(pred, expected)
-        if i%print_every_n == 0:
-            print(f"avg_err: {err / print_every_n}")
-            err = 0
-            
-        nn.learn(expected, input)
-
-
-
-# check()
