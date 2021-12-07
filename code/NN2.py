@@ -17,6 +17,17 @@ class Layer:
         self.weights = np.random.normal(size=(in_dim, out_dim), loc=0.0, scale=1.0 )
         self.bias= np.random.normal(size=(out_dim, 1), loc=0.0, scale=1.0 )
         self.Y = np.zeros((out_dim, 1)) #todo: may need to switch dims order
+        self.X = None
+        self.df_dtheta = None
+    
+    def dy_dw_t_v(self, v, act_tag):
+        W, b, x = self.weights, self.b, self.X
+
+        output = act_tag((W @ x) + b)
+        output = output * v
+        output = output * x.T
+
+
 
 class NN:
     def __init__(self, layer_dims, act=funcs.tanh, act_tag=funcs.tanh_tag, lr=LR):
@@ -36,16 +47,22 @@ class NN:
 
         #propogate data forward through the layers
         for i in range(0, self.num_layers):
+            self.layers[i].X = output
+
             my_print(f"\nlayer: {i}")
             my_print(f"\tW: {self.layers[i].weights}")
+
             output = (output @ self.layers[i].weights)
+
             my_print(f"\toutput: {output}")
+
             #output += self.layers[i].bias.T
             f = funcs.softmax if (i == self.num_layers - 1) else self.act
 
             f_str = "softmax" if (i == self.num_layers - 1) else "self.act"
 
             output = f(output)
+            
             my_print(f"\t\t{f_str}(output): {output}")
             self.layers[i].Y = output
 
@@ -63,7 +80,7 @@ class NN:
             my_print(f"\ni: {i}")
             my_print(f"\terr: {err}")
 
-            d_f = funcs.grad_softmax if (i == 2) else self.d_act
+            d_f = funcs.grad_softmax_old if (i == 2) else self.d_act
             d_f_str = "grad_softmax" if (i == 2) else "self.d_act"
             my_print(f"\td_f: {d_f_str}")
 
@@ -77,7 +94,7 @@ class NN:
             b = (err.T * d_f(output))
 
             my_print(f"\ta: {a.shape}, b: {b.shape}")
-            dW = -self.lr * (a @ b)
+            dW = -self.lr * (err @ input)#(a @ b)
             dB = -(self.lr) * np.mean(b, axis=0, keepdims=True)
 
             my_print(f"\tdW:\n{dW}")
@@ -85,9 +102,9 @@ class NN:
             err = self.layers[self.num_layers - i + 1].weights @ err
 
             my_print(f"\tW before update:\n{self.layers[self.num_layers - i + 1].weights}")
-            self.layers[self.num_layers - i + 1].weights += dW
+            self.layers[self.num_layers - i + 1].weights += dW.T
             my_print(f"\tW after update:\n{self.layers[self.num_layers - i + 1].weights}")
-            self.layers[self.num_layers - i + 1].bias += dB.T
+            #self.layers[self.num_layers - i + 1].bias += dB.T
 
 
         self.lr = max(LR_DECAY * self.lr, MIN_LR)

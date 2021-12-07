@@ -46,20 +46,39 @@ def main():
     # inputs = data_loader.training_inputs.T
     # labels = data_loader.training_labels.T
     #inputs, labels = unison_shuffled_copies(inputs, labels)
-    inputs, labels = make_swirl_data(100)
+    inputs, labels = make_swirl_data(10000)
     # inputs = inputs[5:6]
     # labels = labels[5:6]
 
     in_dim, num_labels, num_samples = get_info(inputs, labels)
 
-    layer_dims = [in_dim, 100, num_labels]
+    layer_dims = [in_dim, 10, 10, num_labels]
     print_info(in_dim, num_labels, num_samples, layer_dims)
 
     nn = NN(layer_dims=layer_dims, act=f.tanh, act_tag=f.tanh_tag)
-    nn.train(inputs, labels, mini_batch_size=1, batch_size=100, num_epochs=10)
+    nn.train(inputs, labels, mini_batch_size=1, batch_size=1000, num_epochs=1)
 
 
+def single_pass():
+    path = '../data/PeaksData.mat'
 
+    #path = '../data/SwissRollData.mat'
+    # data_loader = DataLoader(path)
+
+    # inputs = data_loader.training_inputs.T
+    # labels = data_loader.training_labels.T
+    #inputs, labels = unison_shuffled_copies(inputs, labels)
+    inputs, labels = make_swirl_data(10)
+    inputs = inputs[5:6]
+    labels = labels[5:6]
+
+    in_dim, num_labels, num_samples = get_info(inputs, labels)
+
+    layer_dims = [in_dim, 3, num_labels]
+    print_info(in_dim, num_labels, num_samples, layer_dims)
+
+    nn = NN(layer_dims=layer_dims, act=f.tanh, act_tag=f.tanh_tag)
+    nn.train(inputs, labels, mini_batch_size=1, batch_size=1, num_epochs=1)
 
 
 
@@ -87,8 +106,8 @@ def print_swiss_points(inputs, labels, c):
             input = inputs[i]
             print(f"({input[0]}, {input[1]})")
 
+# single_pass()
 main()
-# my_data()
 
 
 

@@ -1,18 +1,28 @@
 import numpy as np
 
+#tested
 def softmax(xTw):
-    #assumes x = xTranspose * w in the input
-    # e_x = np.exp(xTw - np.max(xTw))
     e_x = np.exp(xTw - np.max(xTw))
     output = e_x / np.sum(e_x, axis=1, keepdims=True)
     return output
 
 
-def cross_entropy(xTw, one_hot_vector):
-    (n, m) = xTw.shape #TODO: handle edge cases
-    return (-1/m) * np.sum(np.log(xTw) * one_hot_vector)
+#tested
+def cross_entropy(pred, real):
+    (n, m) = pred.shape #TODO: handle edge cases
+    return (np.sum(real * np.log(pred), axis=1) / (-m))[0]
 
-def grad_softmax(s):
+# checked, not tested. numbers make sense though. may want to divide by m?
+#note: not the gradient, but its negative
+def ce_grad_wrt_sm_input(pred, real):
+    return (real - pred) / pred.shape[1]
+    #return -np.sum(real / pred, axis=0) #wrt sm output
+
+def grad_softmax(real):
+    return lambda pred: ce_grad_wrt_sm_input(pred, real)
+
+
+def grad_softmax_jac(s):
     func_print("****grad_softmax***")
     func_print(f"s shape: {s.shape}")
     SM = s.reshape((-1,1))
@@ -24,10 +34,10 @@ def grad_softmax(s):
     jac =  d - SM_dot_SMT
     func_print(f"jac shape: {jac.shape}")
     func_print(f"jac:\n {jac}")
-    #return jac
-    v = np.sum(jac, axis=0)
-    func_print(f"jac as vec: {v}")
-    return v
+    return jac
+    # v = jac @ s.T#todo: fix
+    # func_print(f"jac as vec: {v}")
+    # return v.T
     # jacobian_m = np.diag(s)
 
     # for i in range(len(jacobian_m)):
@@ -65,6 +75,7 @@ def relu_tag(x):
     return 1. * (x > 0)
 
 
+
 def get_points(f, a, b, dx):
     output = []
     for x in np.arange(a, b, dx):
@@ -90,5 +101,52 @@ def print_softmax_points():
         for (x1, x2, y) in points:
             file.write(f"({x1},{x2})\t=>\t{y}\n")
         file.close()
-    
+
+
+
+#region TESTS
+ZERO = 0.00000000001
+ONE =  0.9999999999
+
+def test_cross_entropy():
+    print("\n\n***\tTEST CE\t***")
+    pred = np.array([[ZERO, ZERO, ZERO, ONE]])
+    real = np.array([[0,0,0,1]])
+    print(f"CE: {cross_entropy(pred, real)}\tshould be: ~0")
+
+    pred = np.array([[ZERO, ZERO, ONE, ZERO]])
+    real = np.array([[0,0,0,1]])
+    print(f"CE: {cross_entropy(pred, real)}\tshould be: LARGE NUMBER")
+
+    pred = np.array([[.25,.25,.25,.25]])
+    real = np.array([[0,0,0,1]])
+    print(f"CE: {cross_entropy(pred, real)}\tshould be: 0.3465 (1.386/4)")
+
+    pred = np.array([[.25,.25,.4,.1]])
+    real = np.array([[0,0,0,1]])
+    print(f"CE: {cross_entropy(pred, real)}\tshould be: 0.57575 (2.303/4)")
+
+
+def test_cross_entropy_grad():
+    print("\n\n***\tTEST CE_Grad\t***")
+    pred = np.array([[ZERO, ZERO, ZERO, ONE]])
+    real = np.array([[0,0,0,1]])
+    print(f"CEG: {ce_grad_wrt_sm_input(pred, real)}")
+
+    pred = np.array([[ZERO, ZERO, ONE, ZERO]])
+    real = np.array([[0,0,0,1]])
+    print(f"CEG: {ce_grad_wrt_sm_input(pred, real)}")
+
+    pred = np.array([[.25,.25,.25,.25]])
+    real = np.array([[0,0,0,1]])
+    print(f"CEG: {ce_grad_wrt_sm_input(pred, real)}")
+
+    pred = np.array([[.25,.25,.4,.1]])
+    real = np.array([[0,0,0,1]])
+    print(f"CEG: {ce_grad_wrt_sm_input(pred, real)}")
+
+
+#endregion
+# test_cross_entropy()
+# test_cross_entropy_grad()
 
