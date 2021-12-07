@@ -2,28 +2,32 @@ import numpy as np
 
 def softmax(xTw):
     #assumes x = xTranspose * w in the input
+    # e_x = np.exp(xTw - np.max(xTw))
     e_x = np.exp(xTw - np.max(xTw))
-    return e_x / np.sum(e_x, axis=1, keepdims=True)
-    # return e_x / e_x.sum()
+    output = e_x / np.sum(e_x, axis=1, keepdims=True)
+    return output
 
-    # x_transpose = x.T
-    # n = np.argmax(x_transpose.dot(w))
-
-    # denominator = np.dot(x_transpose, w) - n
-    # denominator = np.exp(denominator)
-    # denominator = denominator.sum()
-
-    # numerator = np.exp( np.dot(x_transpose, w[index]) - n)
-
-    # return numerator / denominator
 
 def cross_entropy(xTw, one_hot_vector):
     (n, m) = xTw.shape #TODO: handle edge cases
     return (-1/m) * np.sum(np.log(xTw) * one_hot_vector)
 
 def grad_softmax(s):
-    sm = softmax(s)
-    return sm * (np.ones(sm.shape) - sm)
+    func_print("****grad_softmax***")
+    func_print(f"s shape: {s.shape}")
+    SM = s.reshape((-1,1))
+    func_print(f"SM shape: {SM.shape}")
+    d = np.diagflat(s)
+    func_print(f"d shape: {d.shape}")
+    SM_dot_SMT = np.dot(SM, SM.T)
+    func_print(f"SM_dot_SMT shape: {SM_dot_SMT.shape}")
+    jac =  d - SM_dot_SMT
+    func_print(f"jac shape: {jac.shape}")
+    func_print(f"jac:\n {jac}")
+    #return jac
+    v = np.sum(jac, axis=0)
+    func_print(f"jac as vec: {v}")
+    return v
     # jacobian_m = np.diag(s)
 
     # for i in range(len(jacobian_m)):
@@ -35,13 +39,17 @@ def grad_softmax(s):
     # return jacobian_m
     
 
+DEBUG = False
+def func_print(s):
+    if DEBUG:
+        print(s)
+
 def tanh(x):
     return np.tanh(x)
 
 def tanh_tag(x):#todo: need to apply element by element
-    #print(f"tan` in: {x}")
     output = 1 - (np.tanh(x) * np.tanh(x))
-    #print(f"tan` out: {output}")
+    # output = x - (np.tanh(x) * np.tanh(x))
     return output
 
 def identity(x):
@@ -49,6 +57,12 @@ def identity(x):
 
 def identity_tag(x):
     return np.ones(x.shape)
+
+def relu(x):
+    return x * (x > 0)
+
+def relu_tag(x):
+    return 1. * (x > 0)
 
 
 def get_points(f, a, b, dx):
@@ -78,4 +92,3 @@ def print_softmax_points():
         file.close()
     
 
-print_softmax_points()

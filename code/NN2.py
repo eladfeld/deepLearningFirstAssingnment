@@ -1,20 +1,21 @@
 import numpy as np
 import funcs
-from utils import fs
+from utils import fs, unison_shuffled_copies
 # from matplotlib import pyplot as plt
 # import random
 # from utils import *
 # import scipy.io as sio
 # from copy import deepcopy
-LR = 0.15
+LR = 2
 LR_DECAY = .9999
-MIN_LR = 0.025
+MIN_LR = 0.000000001
+DEBUG = False
 
 class Layer:
     def __init__(self, in_dim, out_dim):
         np.random.seed(42)
-        self.weights = np.random.uniform(size=(in_dim, out_dim), low=-1.0, high=1.0 )
-        self.bias= np.random.uniform(size=(out_dim, 1), low=-1.0, high=1.0 ) #todo: may need to switch dims of size param
+        self.weights = np.random.normal(size=(in_dim, out_dim), loc=0.0, scale=1.0 )
+        self.bias= np.random.normal(size=(out_dim, 1), loc=0.0, scale=1.0 )
         self.Y = np.zeros((out_dim, 1)) #todo: may need to switch dims order
 
 class NN:
@@ -29,76 +30,125 @@ class NN:
             self.layers[i] = Layer(layer_dims[i], layer_dims[i+1])
 
     def predict(self, X):
+        my_print("\n\n********** Predict() **********")
+        my_print(f"input: {X}")
         output = X
 
         #propogate data forward through the layers
         for i in range(0, self.num_layers):
+            my_print(f"\nlayer: {i}")
+            my_print(f"\tW: {self.layers[i].weights}")
             output = (output @ self.layers[i].weights)
+            my_print(f"\toutput: {output}")
             #output += self.layers[i].bias.T
             f = funcs.softmax if (i == self.num_layers - 1) else self.act
+
+            f_str = "softmax" if (i == self.num_layers - 1) else "self.act"
+
             output = f(output)
+            my_print(f"\t\t{f_str}(output): {output}")
             self.layers[i].Y = output
 
         return output        
 
     def learn(self, expected, data):
+        my_print("\n\n********** Learn() **********")
         pred = self.layers[-1].Y
+        my_print(f"input: {data}\n")
+        my_print(f"pred: {pred}\n")
+        my_print(f"real: {expected}\n")
         err = (pred - expected).T
+        
+        for i in range(2, self.num_layers + 2):
+            my_print(f"\ni: {i}")
+            my_print(f"\terr: {err}")
 
-        for i in range(2, self.num_layers + 1):
             d_f = funcs.grad_softmax if (i == 2) else self.d_act
-            a = self.layers[self.num_layers - i].Y.T
-            b = (err.T * d_f(self.layers[self.num_layers - i + 1].Y))#todo: transpose result, not just err?
-            #print(f"a: {a.shape, }b: {b.shape}, meanB0: {np.mean(b, axis=0, keepdims=True).shape}")
+            d_f_str = "grad_softmax" if (i == 2) else "self.d_act"
+            my_print(f"\td_f: {d_f_str}")
+
+            input = self.layers[self.num_layers - i].Y if (i < self.num_layers + 1) else data
+            output = self.layers[self.num_layers - i + 1].Y
+
+            my_print(f"\tinput: {input}\n")
+            my_print(f"\toutput: {output}\n")
+
+            a = input.T
+            b = (err.T * d_f(output))
+
+            my_print(f"\ta: {a.shape}, b: {b.shape}")
             dW = -self.lr * (a @ b)
-            dB = -(self.lr / 10) * np.mean(b, axis=0, keepdims=True)
-            #print(f"learn: a: {a.shape}, b: {b.shape}, dW: {dW.shape}, dB: {dB.shape}")
+            dB = -(self.lr) * np.mean(b, axis=0, keepdims=True)
+
+            my_print(f"\tdW:\n{dW}")
 
             err = self.layers[self.num_layers - i + 1].weights @ err
+
+            my_print(f"\tW before update:\n{self.layers[self.num_layers - i + 1].weights}")
             self.layers[self.num_layers - i + 1].weights += dW
+            my_print(f"\tW after update:\n{self.layers[self.num_layers - i + 1].weights}")
             self.layers[self.num_layers - i + 1].bias += dB.T
 
-        a = data.T
-        b = err.T * self.d_act(self.layers[0].Y)
-        dW = -self.lr * (a @ b)
-        dB = -(self.lr / 10) * np.mean(b, axis=0, keepdims=True)
-        self.layers[0].weights += dW
-        self.layers[0].bias += dB.T
+
         self.lr = max(LR_DECAY * self.lr, MIN_LR)
 
-    def train(self, inputs, labels, mini_batch_size, batch_size):
+    def train(self, inputs, labels, mini_batch_size, batch_size, num_epochs=1):
         batch_err = 0
         num_correct, total = 0, 0
         p_stats = np.zeros((labels.shape[1]))
         r_stats = np.zeros((labels.shape[1]))
-        
-        for i in range(0, len(inputs), mini_batch_size):
-            input = inputs[i:i+mini_batch_size]
-            expected = labels[i:i+mini_batch_size]
-            pred = self.predict(input)
+        epoch_acc = 0
 
-            batch_err += get_error(pred, expected)
-            num_correct_i, total_i = accuracy(pred, expected)
-            num_correct += num_correct_i
-            total += total_i
+        for epoch in range(num_epochs):
+            inputs, labels = unison_shuffled_copies(inputs, labels)
+            print(f"---------- Epoch #{epoch} ----------")
+    
+            for i in range(0, len(inputs), mini_batch_size):
+                input = inputs[i:i+mini_batch_size]
+                expected = labels[i:i+mini_batch_size]
+                pred = self.predict(input)
 
-            p_stats_i, r_stats_i = stats(pred, expected)
-            p_stats += p_stats_i
-            r_stats += r_stats_i
+                batch_err += get_error(pred, expected)
+                num_correct_i, total_i = accuracy(pred, expected)
+                num_correct += num_correct_i
+                total += total_i
+                epoch_acc += num_correct_i
 
-            self.learn(expected, input)
+                p_stats_i, r_stats_i = stats(pred, expected)
+                p_stats += p_stats_i
+                r_stats += r_stats_i
+                    
 
-            if (i + mini_batch_size) % batch_size == 0:
-                # print(f"batch #{int(i/batch_size)}:\twrongs: {bad_preds}/{batch_size}\terr: {batch_err}")
-                # print(f"batch #{int(i/batch_size)}:\terr: {batch_err/batch_size}")
-                print(f"{int(i/batch_size)}\tlr: {fs(self.lr)}\terr: {fs(batch_err/batch_size)}\tacc: {num_correct}/{total}\tps: {p_stats}\trs: {r_stats}")
-                batch_err = 0
-                num_correct, total = 0, 0
-                p_stats = np.zeros((labels.shape[1]))
-                r_stats = np.zeros((labels.shape[1]))
+                self.learn(expected, input)
+
+                if (i + mini_batch_size) % batch_size == 0:
+                    print(f"{int(i/batch_size)}\tlr: {fs(self.lr)}\terr: {fs(batch_err/batch_size)}\tacc: {num_correct}/{total}")#\tps: {p_stats}\trs: {r_stats}")
+                    batch_err = 0
+                    num_correct, total = 0, 0
+                    p_stats = np.zeros((labels.shape[1]))
+                    r_stats = np.zeros((labels.shape[1]))
+
             
+            print(f"epoch acc: {epoch_acc} / {len(inputs)}\t({int((epoch_acc * 100)/len(inputs))}%)")
+            epoch_acc = 0
+            self.lr = LR
 
+def accuracy(pred, real):
+    num_correct = 0
+    total = len(pred)
+    for i in range(total):
+        if (np.argmax(pred[i]) == np.argmax(real[i])):
+            num_correct += 1
+    return num_correct, total
 
+def print_pred_real_acc(pred, real):
+    print("*************")
+    print("pred:")
+    print(pred)
+    print("\nreal:")
+    print(real)
+    print(f"acc: {accuracy(pred, real)}")
+    print("*************")
 
 def stats(preds, reals):
     p_stats = [0] * preds.shape[1]
@@ -114,13 +164,7 @@ def stats(preds, reals):
     return np.array(p_stats), np.array(r_stats)
 
             
-def accuracy(pred, real):
-    num_correct = 0
-    total = len(pred)
-    for i in range(total):
-        if (np.argmax(pred[i]) == np.argmax(real[i])):
-            num_correct += 1
-    return num_correct, total
+
 
 
 def get_error(pred, real):
@@ -138,3 +182,6 @@ def foo(v):
     else:
         return np.array([[1, 0]])
 
+def my_print(s):
+    if DEBUG:
+        print(s)
